@@ -1,0 +1,167 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY = 'omega_connection';
+const RECONNECT_DELAY = 3000;
+const MAX_RECONNECT_ATTEMPTS = 10;
+
+class WebSocketService {
+  constructor() {
+    this.ws = null;
+    this.listeners = new Map();
+    this.connected = false;
+    this.reconnectAttempts = 0;
+    this.reconnectTimer = null;
+    this.pingInterval = null;
+    this.connectionData = null;
+    this.pendingMessages = [];
+  }
+
+  async connect(connectionData) {
+    if (connectionData) {
+      this.connectionData = connectionData;
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(connectionData));
+    } else {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (stored) this.connectionData = JSON.parse(stored);
+    }
+
+    if (!this.connectionData) {
+      console.warn('[WS] No connection data — defaulting to Sovereign Tunnel (loca.lt)');
+      this.connectionData = { host: 'YOUR_LOCAL_TUNNEL_DOMAIN.loca.lt', port: '' };
+    }
+
+    return this._connect();
+  }
+
+  _connect() {
+    const { host, port, url: providedUrl } = this.connectionData;
+    // Use WSS if it's an external tunnel, otherwise local WS
+    const protocol = host && (host.includes('loca.lt') || host.includes('lhr.life')) ? 'wss://' : 'ws://';
+    const portSuffix = port && !host.includes('.lt') && !host.includes('.life') ? `:${port}` : '';
+    const url = providedUrl || `${protocol}${host}${portSuffix}/ws`;
+
+    try {
+      console.log(`[WS] Connecting to ${url}`);
+      this.ws = new WebSocket(url, null, {
+        headers: { 'Bypass-Tunnel-Reminder': 'true' }
+      });
+
+      this.ws.onopen = () => {
+        console.log('[WS] Connected');
+        this.connected = true;
+        this.reconnectAttempts = 0;
+        this._emit('connected', { host, port });
+
+        if (this.pingInterval) clearInterval(this.pingInterval);
+        this.pingInterval = setInterval(() => {
+          this.send('PING');
+        }, 10000);
+
+        // Flush pending messages
+        while (this.pendingMessages.length > 0) {
+          this.ws.send(this.pendingMessages.shift());
+        }
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          console.log('[WS] Received:', msg.type);
+          this._emit(msg.type, msg);
+          this._emit('*', msg); // wildcard
+        } catch (e) {
+          console.error('[WS] Parse error:', e);
+        }
+      };
+
+      this.ws.onerror = (error) => {
+        console.error('[WS] Error:', error.message);
+        this._emit('error', error);
+      };
+
+      this.ws.onclose = (event) => {
+        console.log('[WS] Closed:', event.code);
+        this.connected = false;
+        if (this.pingInterval) clearInterval(this.pingInterval);
+        this._emit('disconnected', { code: event.code });
+        this._scheduleReconnect();
+      };
+
+      return true;
+    } catch (e) {
+      console.error('[WS] Connection failed:', e);
+      this._scheduleReconnect();
+      return false;
+    }
+  }
+
+  _scheduleReconnect() {
+    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      console.warn('[WS] Max reconnect attempts reached');
+      this._emit('reconnect_failed', {});
+      return;
+    }
+
+    this.reconnectAttempts++;
+    const delay = RECONNECT_DELAY * Math.min(this.reconnectAttempts, 5);
+    console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+
+    this.reconnectTimer = setTimeout(() => {
+      this._connect();
+    }, delay);
+  }
+
+  send(type, payload = {}) {
+    const msg = JSON.stringify({ type, ...payload });
+    if (this.connected && this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(msg);
+    } else {
+      this.pendingMessages.push(msg);
+    }
+  }
+
+  on(event, callback) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event).add(callback);
+    return () => this.off(event, callback);
+  }
+
+  off(event, callback) {
+    this.listeners.get(event)?.delete(callback);
+  }
+
+  _emit(event, data) {
+    this.listeners.get(event)?.forEach(cb => cb(data));
+  }
+
+  disconnect() {
+    clearTimeout(this.reconnectTimer);
+    if (this.pingInterval) clearInterval(this.pingInterval);
+    this.reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // Prevent auto-reconnect
+    this.ws?.close();
+    this.connected = false;
+  }
+
+  async getSavedConnection() {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  }
+
+  async clearSavedConnection() {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    this.connectionData = null;
+  }
+
+  getStatus() {
+    return {
+      connected: this.connected,
+      reconnectAttempts: this.reconnectAttempts,
+      host: this.connectionData?.host,
+      port: this.connectionData?.port,
+    };
+  }
+}
+
+export default new WebSocketService();
