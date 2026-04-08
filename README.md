@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="https://raw.githubusercontent.com/VrtxOmega/Gravity-Omega/master/omega_icon.png" width="100" alt="VERITAS" />
   <h1>GRAVITY OMEGA MOBILE</h1>
   <p><strong>Android Client for the Gravity Omega AI Platform</strong></p>
   <p><em>Examina omnia, venerare nihil, pro te cogita.</em></p>
