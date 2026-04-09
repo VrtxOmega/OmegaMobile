@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, Animated, Pressable, Dimensions
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  Animated,
+  Pressable,
+  Dimensions,
 } from 'react-native';
 import { colors, spacing, radius, typography, fonts } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
@@ -30,17 +36,17 @@ const QuickAction = ({ icon, label, onPress, color }) => {
   const handlePressIn = () => {
     Animated.spring(scale, { toValue: 0.92, friction: 5, useNativeDriver: true }).start();
   };
-  
+
   const handlePressOut = () => {
     Animated.spring(scale, { toValue: 1, friction: 5, useNativeDriver: true }).start();
   };
 
   return (
     <Animated.View style={[styles.gridItemWrapper, { transform: [{ scale }] }]}>
-      <Pressable 
-        style={styles.gridItem} 
-        onPress={onPress} 
-        onPressIn={handlePressIn} 
+      <Pressable
+        style={styles.gridItem}
+        onPress={onPress}
+        onPressIn={handlePressIn}
         onPressOut={handlePressOut}
       >
         <Text style={[styles.gridIcon, { color: color || colors.gold }]}>{icon}</Text>
@@ -51,11 +57,13 @@ const QuickAction = ({ icon, label, onPress, color }) => {
 };
 
 const ActiveTask = ({ task }) => {
-  if (!task) return (
-    <View style={styles.emptyTask}>
-      <Text style={styles.emptyTaskText}>No active task</Text>
-    </View>
-  );
+  if (!task) {
+    return (
+      <View style={styles.emptyTask}>
+        <Text style={styles.emptyTaskText}>No active task</Text>
+      </View>
+    );
+  }
 
   const progress = task.current / task.total;
 
@@ -64,7 +72,9 @@ const ActiveTask = ({ task }) => {
       <View style={styles.taskBorder} />
       <View style={styles.taskContent}>
         <Text style={styles.taskName}>{task.name}</Text>
-        <Text style={styles.taskSub}>Step {task.current} of {task.total} — {task.action}</Text>
+        <Text style={styles.taskSub}>
+          Step {task.current} of {task.total} — {task.action}
+        </Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
@@ -76,16 +86,23 @@ const ActiveTask = ({ task }) => {
 const ActivityItem = ({ item }) => {
   const icons = { AST: '📝', NET: '🌐', SYS: '⚙️', VLT: '🗄️' };
   const icon = icons[item.type] || '🔧';
-  const timeStr = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const timeStr = new Date(item.timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
     <View style={styles.activityItem}>
       <Text style={styles.activityIcon}>{icon}</Text>
       <View style={styles.activityContent}>
-        <Text style={styles.activityLabel} numberOfLines={1}>{item.label}</Text>
+        <Text style={styles.activityLabel} numberOfLines={1}>
+          {item.label}
+        </Text>
         <Text style={styles.activityTime}>{timeStr}</Text>
       </View>
-      <View style={[styles.activityDot, { backgroundColor: item.ok ? colors.green : colors.red }]} />
+      <View
+        style={[styles.activityDot, { backgroundColor: item.ok ? colors.green : colors.red }]}
+      />
     </View>
   );
 };
@@ -101,10 +118,10 @@ export default function HomeScreen({ navigation }) {
   const [activity, setActivity] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [latency, setLatency] = useState(null);
-  
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const watermarkAnim = useRef(new Animated.Value(1)).current;
-  
+
   // Staggered entrance animations
   const fadeAnims = useRef([...Array(6)].map(() => new Animated.Value(0))).current;
   const slideAnims = useRef([...Array(6)].map(() => new Animated.Value(30))).current;
@@ -114,42 +131,51 @@ export default function HomeScreen({ navigation }) {
     const animations = fadeAnims.map((anim, i) => {
       return Animated.parallel([
         Animated.timing(anim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        Animated.spring(slideAnims[i], { toValue: 0, friction: 8, tension: 40, useNativeDriver: true })
+        Animated.spring(slideAnims[i], {
+          toValue: 0,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
       ]);
     });
     Animated.stagger(120, animations).start();
 
     // Pulse animation for connection indicator
-    Animated.loop(
+    const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.3, duration: 1000, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-      ])
-    ).start();
+      ]),
+    );
+    pulseLoop.start();
 
     // Watermark breathing animation
-    Animated.loop(
+    const watermarkLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(watermarkAnim, { toValue: 1.05, duration: 4000, useNativeDriver: true }),
         Animated.timing(watermarkAnim, { toValue: 1, duration: 4000, useNativeDriver: true }),
-      ])
-    ).start();
+      ]),
+    );
+    watermarkLoop.start();
 
-    const unsubStatus = WSService.on('NAEF_STATUS', (data) => {
+    const unsubStatus = WSService.on('NAEF_STATUS', data => {
       setStatus({
         backend: data.backend === 'ONLINE',
         ollama: data.ollama === 'READY',
         sentinel: data.sentinel === 'ACTIVE',
         connected: true,
       });
-      if (data.latency) setLatency(data.latency);
+      if (data.latency) {
+        setLatency(data.latency);
+      }
     });
 
-    const unsubTask = WSService.on('AGENT_TASK_UPDATE', (data) => {
+    const unsubTask = WSService.on('AGENT_TASK_UPDATE', data => {
       setActiveTask(data.task);
     });
 
-    const unsubActivity = WSService.on('AGENT_STEP_COMPLETE', (data) => {
+    const unsubActivity = WSService.on('AGENT_STEP_COMPLETE', data => {
       // deduplicate or slice safely
       setActivity(prev => [data, ...prev].slice(0, 10));
     });
@@ -166,13 +192,15 @@ export default function HomeScreen({ navigation }) {
     WSService.send('REQUEST_STATUS');
 
     return () => {
+      pulseLoop.stop();
+      watermarkLoop.stop();
       unsubStatus();
       unsubTask();
       unsubActivity();
       unsubConnected();
       unsubDisconnected();
     };
-  }, []);
+  }, [fadeAnims, pulseAnim, slideAnims, watermarkAnim]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -182,7 +210,9 @@ export default function HomeScreen({ navigation }) {
 
   // Helper macro for animated wrapping
   const wrapAnimated = (index, Component) => (
-    <Animated.View style={{ opacity: fadeAnims[index], transform: [{ translateY: slideAnims[index] }] }}>
+    <Animated.View
+      style={{ opacity: fadeAnims[index], transform: [{ translateY: slideAnims[index] }] }}
+    >
       {Component}
     </Animated.View>
   );
@@ -196,75 +226,116 @@ export default function HomeScreen({ navigation }) {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />
+        }
       >
         {/* Header */}
-        {wrapAnimated(0, (
+        {wrapAnimated(
+          0,
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Ω OMEGA</Text>
             <Text style={styles.headerSub}>COMMAND CENTER</Text>
             <View style={styles.connectionBadge}>
-              <Animated.View style={[styles.connectionPulse, { transform: [{ scale: pulseAnim }], opacity: status.connected ? 1 : 0.3 }]} />
-              <Text style={[styles.connectionText, { color: status.connected ? colors.green : colors.red }]}>
+              <Animated.View
+                style={[
+                  styles.connectionPulse,
+                  status.connected ? styles.connectionPulseOnline : styles.connectionPulseOffline,
+                  { transform: [{ scale: pulseAnim }] },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.connectionText,
+                  { color: status.connected ? colors.green : colors.red },
+                ]}
+              >
                 {status.connected ? `CONNECTED${latency ? ` · ${latency}ms` : ''}` : 'OFFLINE'}
               </Text>
             </View>
-          </View>
-        ))}
+          </View>,
+        )}
 
         {/* Status */}
-        {wrapAnimated(1, (
+        {wrapAnimated(
+          1,
           <View>
             <Text style={styles.sectionLabel}>STATUS</Text>
             <View style={styles.card}>
-              <StatusCard label="Backend" status={status.backend ? 'ONLINE' : 'OFFLINE'} online={status.backend} />
+              <StatusCard
+                label="Backend"
+                status={status.backend ? 'ONLINE' : 'OFFLINE'}
+                online={status.backend}
+              />
               <View style={styles.divider} />
-              <StatusCard label="Ollama" status={status.ollama ? 'READY' : 'OFFLINE'} online={status.ollama} />
+              <StatusCard
+                label="Ollama"
+                status={status.ollama ? 'READY' : 'OFFLINE'}
+                online={status.ollama}
+              />
               <View style={styles.divider} />
-              <StatusCard label="Sentinel" status={status.sentinel ? 'ACTIVE' : 'PAUSED'} online={status.sentinel} />
+              <StatusCard
+                label="Sentinel"
+                status={status.sentinel ? 'ACTIVE' : 'PAUSED'}
+                online={status.sentinel}
+              />
             </View>
-          </View>
-        ))}
+          </View>,
+        )}
 
         {/* Quick Actions */}
-        {wrapAnimated(2, (
+        {wrapAnimated(
+          2,
           <View>
             <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
             <View style={styles.grid}>
               <QuickAction icon="⌖" label="Command" onPress={() => navigation.navigate('Agent')} />
               <QuickAction icon="◈" label="Vault" onPress={() => navigation.navigate('Vault')} />
-              <QuickAction icon="⬡" label="Terminal" onPress={() => navigation.navigate('Terminal')} />
-              <QuickAction icon="◉" label="Aegis" onPress={() => navigation.navigate('Aegis')} color={colors.green} />
+              <QuickAction
+                icon="⬡"
+                label="Terminal"
+                onPress={() => navigation.navigate('Terminal')}
+              />
+              <QuickAction
+                icon="◉"
+                label="Aegis"
+                onPress={() => navigation.navigate('Aegis')}
+                color={colors.green}
+              />
             </View>
-          </View>
-        ))}
+          </View>,
+        )}
 
         {/* Active Task */}
-        {wrapAnimated(3, (
+        {wrapAnimated(
+          3,
           <View>
             <Text style={styles.sectionLabel}>ACTIVE TASK</Text>
             <ActiveTask task={activeTask} />
-          </View>
-        ))}
+          </View>,
+        )}
 
         {/* Recent Activity */}
-        {activity.length > 0 && wrapAnimated(4, (
-          <View>
-            <Text style={styles.sectionLabel}>RECENT ACTIVITY</Text>
-            <View style={styles.card}>
-              {activity.map((item, i) => (
-                <ActivityItem key={i} item={item} />
-              ))}
-            </View>
-          </View>
-        ))}
+        {activity.length > 0 &&
+          wrapAnimated(
+            4,
+            <View>
+              <Text style={styles.sectionLabel}>RECENT ACTIVITY</Text>
+              <View style={styles.card}>
+                {activity.map((item, i) => (
+                  <ActivityItem key={i} item={item} />
+                ))}
+              </View>
+            </View>,
+          )}
 
         {/* Footer */}
-        {wrapAnimated(5, (
+        {wrapAnimated(
+          5,
           <View style={styles.footer}>
             <Text style={styles.footerText}>VERITAS · Examina omnia, venerare nihil</Text>
-          </View>
-        ))}
+          </View>,
+        )}
       </ScrollView>
     </View>
   );
@@ -287,10 +358,38 @@ const styles = StyleSheet.create({
   },
 
   header: { alignItems: 'center', paddingVertical: spacing.xl, marginBottom: spacing.md },
-  headerTitle: { ...typography.title, fontSize: 20, letterSpacing: 6, marginBottom: 4, textShadowColor: colors.goldDim, textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
+  headerTitle: {
+    ...typography.title,
+    fontSize: 20,
+    letterSpacing: 6,
+    marginBottom: 4,
+    textShadowColor: colors.goldDim,
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
+  },
   headerSub: { ...typography.subtitle, fontSize: 10 },
-  connectionBadge: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: spacing.sm },
-  connectionPulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.green, shadowColor: colors.green, shadowOpacity: 0.8, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
+  connectionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  connectionPulse: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.green,
+    shadowColor: colors.green,
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  connectionPulseOnline: {
+    opacity: 1,
+  },
+  connectionPulseOffline: {
+    opacity: 0.3,
+  },
   connectionText: { fontFamily: 'Courier New', fontSize: 10, letterSpacing: 1 },
 
   sectionLabel: { ...typography.label, marginBottom: spacing.sm, marginTop: spacing.lg },
@@ -303,7 +402,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     overflow: 'hidden',
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 6,
@@ -318,7 +417,15 @@ const styles = StyleSheet.create({
   statusLabel: { ...typography.bodySmall, color: colors.text, fontSize: 12 },
   statusRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   statusValue: { fontFamily: 'Courier New', fontSize: 10, letterSpacing: 1, fontWeight: '700' },
-  dot: { width: 6, height: 6, borderRadius: 3, shadowColor: '#000', shadowOffset: {width: 0, height: 0}, shadowOpacity: 0.8, shadowRadius: 3 },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
+  },
   divider: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.md },
 
   grid: {
@@ -339,7 +446,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     alignItems: 'center',
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 6},
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 14,
     elevation: 8,
@@ -356,14 +463,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: spacing.md,
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 6},
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 8,
   },
   taskBorder: { width: 3, backgroundColor: colors.gold },
   taskContent: { flex: 1, padding: spacing.md },
-  taskName: { color: colors.gold, fontFamily: 'Courier New', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  taskName: {
+    color: colors.gold,
+    fontFamily: 'Courier New',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
   taskSub: { ...typography.bodySmall, marginBottom: spacing.sm, color: colors.text },
   progressTrack: { height: 4, backgroundColor: colors.obsidianLight, borderRadius: 2 },
   progressFill: { height: 4, backgroundColor: colors.gold, borderRadius: 2 },

@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TextInput,
-  TouchableOpacity, StyleSheet, RefreshControl,
+  View,
+  Text,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
 } from 'react-native';
 import { colors, spacing, radius, typography } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
@@ -25,7 +30,9 @@ const KICard = ({ ki, onPress }) => {
           <Text style={[styles.kiHealth, { color }]}>{(ki.health || 'unknown').toUpperCase()}</Text>
           <Text style={styles.kiCount}>{ki.doc_count || 0} docs</Text>
         </View>
-        <Text style={styles.kiTitle} numberOfLines={2}>{ki.title || 'Untitled'}</Text>
+        <Text style={styles.kiTitle} numberOfLines={2}>
+          {ki.title || 'Untitled'}
+        </Text>
         {ki.updated_at && (
           <Text style={styles.kiDate}>{new Date(ki.updated_at).toLocaleDateString()}</Text>
         )}
@@ -40,10 +47,10 @@ const SessionCard = ({ session }) => (
       <Text style={styles.sessionSource}>{session.source || 'UNKNOWN'}</Text>
       <Text style={styles.sessionDate}>{session.updated_at?.split(' ')[0] || ''}</Text>
     </View>
-    <Text style={styles.sessionTitle} numberOfLines={1}>{session.title || session.id || 'Untitled'}</Text>
-    {session.doc_count > 0 && (
-      <Text style={styles.sessionDocs}>{session.doc_count} documents</Text>
-    )}
+    <Text style={styles.sessionTitle} numberOfLines={1}>
+      {session.title || session.id || 'Untitled'}
+    </Text>
+    {session.doc_count > 0 && <Text style={styles.sessionDocs}>{session.doc_count} documents</Text>}
   </View>
 );
 
@@ -53,9 +60,7 @@ const SearchResult = ({ result }) => (
     <Text style={styles.searchResultTitle} numberOfLines={2}>
       {result.title || result.content || result.summary || ''}
     </Text>
-    {result.source && (
-      <Text style={styles.searchResultSource}>{result.source}</Text>
-    )}
+    {result.source && <Text style={styles.searchResultSource}>{result.source}</Text>}
   </View>
 );
 
@@ -70,22 +75,28 @@ export default function VaultScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const unsubContext = WSService.on('VAULT_CONTEXT', (data) => {
-      if (data.stats) setStats(data.stats);
+    const unsubContext = WSService.on('VAULT_CONTEXT', data => {
+      if (data.stats) {
+        setStats(data.stats);
+      }
       if (data.recent) {
         // Split into KIs and sessions
       }
     });
 
-    const unsubKI = WSService.on('VAULT_KI_HEALTH', (data) => {
-      if (data.items) setKIs(data.items);
+    const unsubKI = WSService.on('VAULT_KI_HEALTH', data => {
+      if (data.items) {
+        setKIs(data.items);
+      }
     });
 
-    const unsubSessions = WSService.on('VAULT_SESSIONS', (data) => {
-      if (Array.isArray(data.sessions)) setSessions(data.sessions);
+    const unsubSessions = WSService.on('VAULT_SESSIONS', data => {
+      if (Array.isArray(data.sessions)) {
+        setSessions(data.sessions);
+      }
     });
 
-    const unsubSearch = WSService.on('VAULT_SEARCH_RESULTS', (data) => {
+    const unsubSearch = WSService.on('VAULT_SEARCH_RESULTS', data => {
       setSearching(false);
       setSearchResults(data.results || []);
     });
@@ -95,11 +106,18 @@ export default function VaultScreen() {
     WSService.send('VAULT_REQUEST_KI_HEALTH');
     WSService.send('VAULT_REQUEST_SESSIONS');
 
-    return () => { unsubContext(); unsubKI(); unsubSessions(); unsubSearch(); };
+    return () => {
+      unsubContext();
+      unsubKI();
+      unsubSessions();
+      unsubSearch();
+    };
   }, []);
 
   const handleSearch = useCallback(() => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      return;
+    }
     setSearching(true);
     setActiveTab('search');
     WSService.send('VAULT_SEARCH', { query: searchQuery });
@@ -171,29 +189,34 @@ export default function VaultScreen() {
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentInner}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />
+        }
       >
-        {activeTab === 'ki' && (
-          kis.length > 0
-            ? kis.map((ki, i) => <KICard key={i} ki={ki} onPress={() => {}} />)
-            : <Text style={styles.empty}>No knowledge items found</Text>
-        )}
+        {activeTab === 'ki' &&
+          (kis.length > 0 ? (
+            kis.map((ki, i) => <KICard key={i} ki={ki} onPress={() => {}} />)
+          ) : (
+            <Text style={styles.empty}>No knowledge items found</Text>
+          ))}
 
-        {activeTab === 'sessions' && (
-          sessions.length > 0
-            ? sessions.map((s, i) => <SessionCard key={i} session={s} />)
-            : <Text style={styles.empty}>No sessions found</Text>
-        )}
+        {activeTab === 'sessions' &&
+          (sessions.length > 0 ? (
+            sessions.map((s, i) => <SessionCard key={i} session={s} />)
+          ) : (
+            <Text style={styles.empty}>No sessions found</Text>
+          ))}
 
-        {activeTab === 'search' && (
-          searching
-            ? <Text style={styles.empty}>Searching...</Text>
-            : searchResults.length > 0
-              ? searchResults.map((r, i) => <SearchResult key={i} result={r} />)
-              : searchQuery
-                ? <Text style={styles.empty}>No results for "{searchQuery}"</Text>
-                : <Text style={styles.empty}>Enter a query to search the vault</Text>
-        )}
+        {activeTab === 'search' &&
+          (searching ? (
+            <Text style={styles.empty}>Searching...</Text>
+          ) : searchResults.length > 0 ? (
+            searchResults.map((r, i) => <SearchResult key={i} result={r} />)
+          ) : searchQuery ? (
+            <Text style={styles.empty}>No results for "{searchQuery}"</Text>
+          ) : (
+            <Text style={styles.empty}>Enter a query to search the vault</Text>
+          ))}
       </ScrollView>
     </View>
   );
@@ -234,7 +257,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   searchBtn: {
-    width: 36, height: 36,
+    width: 36,
+    height: 36,
     backgroundColor: colors.goldFaint,
     borderRadius: 18,
     alignItems: 'center',
@@ -265,7 +289,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     overflow: 'hidden',
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
@@ -285,13 +309,19 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
   },
   sessionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  sessionSource: { fontFamily: 'Courier New', fontSize: 9, color: colors.gold, letterSpacing: 1, fontWeight: 'bold' },
+  sessionSource: {
+    fontFamily: 'Courier New',
+    fontSize: 9,
+    color: colors.gold,
+    letterSpacing: 1,
+    fontWeight: 'bold',
+  },
   sessionDate: { fontFamily: 'Courier New', fontSize: 8, color: colors.textFaint },
   sessionTitle: { fontFamily: 'Courier New', fontSize: 12, color: colors.text, fontWeight: '600' },
   sessionDocs: { fontFamily: 'Courier New', fontSize: 9, color: colors.textDim, marginTop: 4 },
@@ -303,14 +333,30 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
   },
-  searchResultDate: { fontFamily: 'Courier New', fontSize: 8, color: colors.textFaint, marginBottom: 4 },
+  searchResultDate: {
+    fontFamily: 'Courier New',
+    fontSize: 8,
+    color: colors.textFaint,
+    marginBottom: 4,
+  },
   searchResultTitle: { fontFamily: 'Courier New', fontSize: 11, color: colors.text },
-  searchResultSource: { fontFamily: 'Courier New', fontSize: 9, color: colors.goldDim, marginTop: 4 },
+  searchResultSource: {
+    fontFamily: 'Courier New',
+    fontSize: 9,
+    color: colors.goldDim,
+    marginTop: 4,
+  },
 
-  empty: { fontFamily: 'Courier New', fontSize: 11, color: colors.textFaint, textAlign: 'center', padding: spacing.xl },
+  empty: {
+    fontFamily: 'Courier New',
+    fontSize: 11,
+    color: colors.textFaint,
+    textAlign: 'center',
+    padding: spacing.xl,
+  },
 });

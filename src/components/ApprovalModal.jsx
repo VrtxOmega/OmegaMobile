@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  Animated, Vibration, Modal,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Vibration, Modal } from 'react-native';
 import { colors, spacing, radius, typography } from '../theme/veritas';
 import BiometricService from '../services/BiometricService';
 
@@ -41,7 +38,7 @@ export default function ApprovalModal({ challenge, onResult, onDismiss }) {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, []);
+  }, [onResult, slideAnim]);
 
   const handleApprove = async () => {
     clearInterval(timerRef.current);
@@ -90,13 +87,15 @@ export default function ApprovalModal({ challenge, onResult, onDismiss }) {
     }, 300);
   };
 
-  const safetyColor = {
-    SAFE: colors.green,
-    GATED: colors.gold,
-    RESTRICTED: colors.red,
-  }[challenge.safety] || colors.orange;
+  const safetyColor =
+    {
+      SAFE: colors.green,
+      GATED: colors.gold,
+      RESTRICTED: colors.red,
+    }[challenge.safety] || colors.orange;
 
-  const countdownColor = countdown <= 10 ? colors.red : countdown <= 20 ? colors.orange : colors.textDim;
+  const countdownColor =
+    countdown <= 10 ? colors.red : countdown <= 20 ? colors.orange : colors.textDim;
 
   const renderArgs = () => {
     try {
@@ -109,7 +108,8 @@ export default function ApprovalModal({ challenge, onResult, onDismiss }) {
           </Text>
         </View>
       ));
-    } catch {
+    } catch (e) {
+      console.error('[ApprovalModal] Failed to parse args:', e);
       return <Text style={styles.argValue}>{String(challenge.args)}</Text>;
     }
   };
@@ -118,7 +118,6 @@ export default function ApprovalModal({ challenge, onResult, onDismiss }) {
     <Modal transparent animationType="none" visible statusBarTranslucent>
       <View style={styles.overlay}>
         <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }]}>
-
           {/* Header */}
           <View style={[styles.header, { borderTopColor: safetyColor }]}>
             <Text style={[styles.safetyBadge, { color: safetyColor, borderColor: safetyColor }]}>
@@ -137,9 +136,7 @@ export default function ApprovalModal({ challenge, onResult, onDismiss }) {
           {/* Args */}
           <View style={styles.argsSection}>
             <Text style={styles.argsLabel}>ARGUMENTS</Text>
-            <View style={styles.argsContent}>
-              {renderArgs()}
-            </View>
+            <View style={styles.argsContent}>{renderArgs()}</View>
           </View>
 
           {/* Status message */}
@@ -150,7 +147,9 @@ export default function ApprovalModal({ challenge, onResult, onDismiss }) {
           )}
           {status === 'approved' && (
             <View style={[styles.statusMsg, { backgroundColor: colors.greenDim }]}>
-              <Text style={[styles.statusText, { color: colors.green }]}>✓ Approved — executing</Text>
+              <Text style={[styles.statusText, { color: colors.green }]}>
+                ✓ Approved — executing
+              </Text>
             </View>
           )}
           {status === 'denied' && (
@@ -186,7 +185,6 @@ export default function ApprovalModal({ challenge, onResult, onDismiss }) {
           <Text style={styles.securityNote}>
             🔒 Signed with Android Keystore · VERITAS SEAL on approval
           </Text>
-
         </Animated.View>
       </View>
     </Modal>
@@ -301,8 +299,19 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     alignItems: 'center',
   },
-  approveBtnTitle: { fontFamily: 'Courier New', fontSize: 12, color: colors.green, letterSpacing: 2, fontWeight: 'bold' },
-  approveBtnSub: { fontFamily: 'Courier New', fontSize: 9, color: 'rgba(76,175,80,0.6)', marginTop: 2 },
+  approveBtnTitle: {
+    fontFamily: 'Courier New',
+    fontSize: 12,
+    color: colors.green,
+    letterSpacing: 2,
+    fontWeight: 'bold',
+  },
+  approveBtnSub: {
+    fontFamily: 'Courier New',
+    fontSize: 9,
+    color: 'rgba(76,175,80,0.6)',
+    marginTop: 2,
+  },
 
   securityNote: {
     fontFamily: 'Courier New',

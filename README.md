@@ -73,3 +73,18 @@ MIT
 <div align="center">
   <sub>Built by <a href="https://github.com/VrtxOmega">RJ Lopez</a> | VERITAS Framework</sub>
 </div>
+### Development & Maintenance
+
+#### Linting
+To check and fix code styling issues with ESLint and Prettier:
+`ash
+npm run lint
+`
+
+#### Testing
+To run the Jest unit tests:
+`ash
+npm run test
+`
+
+The CI pipeline runs automated checks on all branches on push and pull requests.

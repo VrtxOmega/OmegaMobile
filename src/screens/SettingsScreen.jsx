@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Image, Alert,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { colors, spacing, radius, typography } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
 import BiometricService from '../services/BiometricService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SettingRow = ({ label, value, onPress, danger }) => (
   <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
@@ -14,21 +10,25 @@ const SettingRow = ({ label, value, onPress, danger }) => (
       <Text style={styles.settingLabel}>{label}</Text>
       {value && <Text style={styles.settingValue}>{value}</Text>}
     </View>
-    <Text style={[styles.settingArrow, danger && { color: colors.red }]}>
-      {danger ? '⚠' : '›'}
-    </Text>
+    <Text style={[styles.settingArrow, danger && { color: colors.red }]}>{danger ? '⚠' : '›'}</Text>
   </TouchableOpacity>
 );
 
 const ConnectionStatus = ({ status }) => (
   <View style={[styles.connStatus, { borderColor: status.connected ? colors.green : colors.red }]}>
-    <View style={[styles.connDot, { backgroundColor: status.connected ? colors.green : colors.red }]} />
+    <View
+      style={[styles.connDot, { backgroundColor: status.connected ? colors.green : colors.red }]}
+    />
     <View style={styles.connInfo}>
-      <Text style={[styles.connStatusText, { color: status.connected ? colors.green : colors.red }]}>
+      <Text
+        style={[styles.connStatusText, { color: status.connected ? colors.green : colors.red }]}
+      >
         {status.connected ? 'CONNECTED' : 'DISCONNECTED'}
       </Text>
       {status.host && (
-        <Text style={styles.connHost}>{status.host}:{status.port}</Text>
+        <Text style={styles.connHost}>
+          {status.host}:{status.port}
+        </Text>
       )}
       {status.reconnectAttempts > 0 && (
         <Text style={styles.connRetry}>Reconnect attempt {status.reconnectAttempts}</Text>
@@ -40,8 +40,6 @@ const ConnectionStatus = ({ status }) => (
 export default function SettingsScreen({ navigation }) {
   const [wsStatus, setWsStatus] = useState({ connected: false });
   const [biometricType, setBiometricType] = useState(null);
-  const [pairingQR, setPairingQR] = useState(null);
-  const [showQR, setShowQR] = useState(false);
   const [deviceId, setDeviceId] = useState(null);
   const [notifSettings, setNotifSettings] = useState({
     approvals: true,
@@ -55,54 +53,43 @@ export default function SettingsScreen({ navigation }) {
     setWsStatus(WSService.getStatus());
 
     const unsubConnected = WSService.on('connected', () => setWsStatus(WSService.getStatus()));
-    const unsubDisconnected = WSService.on('disconnected', () => setWsStatus(WSService.getStatus()));
-
-    const unsubQR = WSService.on('PAIRING_QR', (data) => {
-      setPairingQR(data.qr);
-      setShowQR(true);
-    });
+    const unsubDisconnected = WSService.on('disconnected', () =>
+      setWsStatus(WSService.getStatus()),
+    );
 
     // Check biometrics
     BiometricService.checkAvailability().then(({ available, biometryType }) => {
-      if (available) setBiometricType(biometryType);
+      if (available) {
+        setBiometricType(biometryType);
+      }
     });
 
     // Get device ID
     BiometricService.getOrCreateDeviceId().then(setDeviceId);
 
-    return () => { unsubConnected(); unsubDisconnected(); unsubQR(); };
+    return () => {
+      unsubConnected();
+      unsubDisconnected();
+    };
   }, []);
-
-  const requestPairingQR = () => {
-    WSService.send('REQUEST_PAIRING_QR');
-    Alert.alert(
-      'Pairing QR',
-      'Request sent to desktop. Open Gravity Omega → Settings → Mobile Pairing to generate the QR code.',
-      [{ text: 'OK' }]
-    );
-  };
 
   const handleScanQR = () => {
     navigation.navigate('QRScanner');
   };
 
   const handleDisconnect = () => {
-    Alert.alert(
-      'Disconnect',
-      'Remove saved connection and disconnect from Gravity Omega?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Disconnect',
-          style: 'destructive',
-          onPress: async () => {
-            WSService.disconnect();
-            await WSService.clearSavedConnection();
-            setWsStatus({ connected: false });
-          }
-        }
-      ]
-    );
+    Alert.alert('Disconnect', 'Remove saved connection and disconnect from Gravity Omega?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Disconnect',
+        style: 'destructive',
+        onPress: async () => {
+          WSService.disconnect();
+          await WSService.clearSavedConnection();
+          setWsStatus({ connected: false });
+        },
+      },
+    ]);
   };
 
   const handleRegeneratePair = async () => {
@@ -117,23 +104,26 @@ export default function SettingsScreen({ navigation }) {
           onPress: async () => {
             try {
               await BiometricService.generateKeypair();
-              Alert.alert('Done', 'New keypair generated. Re-pair with Gravity Omega to update the public key.');
+              Alert.alert(
+                'Done',
+                'New keypair generated. Re-pair with Gravity Omega to update the public key.',
+              );
             } catch (e) {
+              console.error('[SettingsScreen] Error generating keypair:', e);
               Alert.alert('Error', e.message);
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
-  const toggleNotif = (key) => {
+  const toggleNotif = key => {
     setNotifSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-
       {/* Connection status */}
       <ConnectionStatus status={wsStatus} />
 
@@ -160,9 +150,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Biometric Type</Text>
-            <Text style={styles.settingValue}>
-              {biometricType || 'Not available'}
-            </Text>
+            <Text style={styles.settingValue}>{biometricType || 'Not available'}</Text>
           </View>
           <View style={[styles.badge, { borderColor: biometricType ? colors.green : colors.red }]}>
             <Text style={[styles.badgeText, { color: biometricType ? colors.green : colors.red }]}>
@@ -208,14 +196,18 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={styles.settingLabel}>{label}</Text>
                 <Text style={styles.settingValue}>{desc}</Text>
               </View>
-              <View style={[
-                styles.toggle,
-                (notifSettings[key] || key === 'approvals') && styles.toggleOn
-              ]}>
-                <View style={[
-                  styles.toggleThumb,
-                  (notifSettings[key] || key === 'approvals') && styles.toggleThumbOn
-                ]} />
+              <View
+                style={[
+                  styles.toggle,
+                  (notifSettings[key] || key === 'approvals') && styles.toggleOn,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.toggleThumb,
+                    (notifSettings[key] || key === 'approvals') && styles.toggleThumbOn,
+                  ]}
+                />
               </View>
             </TouchableOpacity>
           </React.Fragment>
@@ -237,10 +229,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
       </View>
 
-      <Text style={styles.footer}>
-        Examina omnia, venerare nihil, pro te cogita.
-      </Text>
-
+      <Text style={styles.footer}>Examina omnia, venerare nihil, pro te cogita.</Text>
     </ScrollView>
   );
 }
@@ -259,12 +248,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     backgroundColor: colors.obsidianMid,
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 5,
   },
-  connDot: { width: 8, height: 8, borderRadius: 4, shadowColor: '#000', shadowOffset: {width: 0, height: 0}, shadowOpacity: 0.8, shadowRadius: 3 },
+  connDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
+  },
   connInfo: { flex: 1 },
   connStatusText: { fontFamily: 'Courier New', fontSize: 11, letterSpacing: 2, fontWeight: 'bold' },
   connHost: { fontFamily: 'Courier New', fontSize: 10, color: colors.textDim, marginTop: 2 },
@@ -280,7 +277,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: spacing.md,
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 4,
@@ -292,14 +289,25 @@ const styles = StyleSheet.create({
   settingValue: { fontFamily: 'Courier New', fontSize: 9, color: colors.textDim, marginTop: 2 },
   settingArrow: { color: colors.goldDim, fontSize: 16 },
 
-  badge: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  badge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   badgeText: { fontFamily: 'Courier New', fontSize: 11 },
 
   toggle: {
-    width: 44, height: 24, borderRadius: 12,
+    width: 44,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: colors.obsidianLight,
-    borderWidth: 1, borderColor: colors.border,
-    justifyContent: 'center', paddingHorizontal: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
   },
   toggleOn: { backgroundColor: 'rgba(212,175,55,0.2)', borderColor: colors.gold },
   toggleThumb: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.textDim },
@@ -310,7 +318,12 @@ const styles = StyleSheet.create({
   aboutSection: { alignItems: 'center', padding: spacing.xl },
   aboutTitle: { ...typography.title, fontSize: 16, letterSpacing: 4 },
   aboutSub: { ...typography.subtitle, marginTop: 4 },
-  aboutVersion: { fontFamily: 'Courier New', fontSize: 10, color: colors.textFaint, marginTop: spacing.sm },
+  aboutVersion: {
+    fontFamily: 'Courier New',
+    fontSize: 10,
+    color: colors.textFaint,
+    marginTop: spacing.sm,
+  },
 
   footer: {
     fontFamily: 'Courier New',

@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, Animated,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+  Animated,
 } from 'react-native';
 import { colors, spacing, radius, typography } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
@@ -45,7 +50,9 @@ const FindingCard = ({ finding }) => {
       </View>
       {expanded && (
         <>
-          <Text style={styles.findingFile}>{finding.file}:{finding.line}</Text>
+          <Text style={styles.findingFile}>
+            {finding.file}:{finding.line}
+          </Text>
           <Text style={styles.findingDetail}>{finding.detail}</Text>
           <View style={styles.findingActions}>
             <TouchableOpacity
@@ -97,7 +104,7 @@ export default function AegisScreen() {
   const [lastScan, setLastScan] = useState(null);
   const [scanDuration, setScanDuration] = useState(null);
   const [defenses, setDefenses] = useState({
-    'Sentinel': 'ACTIVE',
+    Sentinel: 'ACTIVE',
     'AEGIS Shield': 'ONLINE',
     'Shadow Trap': 'ONLINE',
     'Mirror Gate': 'STANDBY',
@@ -106,7 +113,7 @@ export default function AegisScreen() {
   const scanAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const unsubScan = WSService.on('AEGIS_SCAN_RESULT', (data) => {
+    const unsubScan = WSService.on('AEGIS_SCAN_RESULT', data => {
       setScanning(false);
       setFindings(data.findings || []);
       setScore(data.score || 100);
@@ -115,31 +122,35 @@ export default function AegisScreen() {
       Animated.timing(scanAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
     });
 
-    const unsubProgress = WSService.on('AEGIS_SCAN_PROGRESS', (data) => {
+    const unsubProgress = WSService.on('AEGIS_SCAN_PROGRESS', data => {
       // Could show progress
     });
 
-    const unsubDefense = WSService.on('AEGIS_DEFENSE_STATUS', (data) => {
+    const unsubDefense = WSService.on('AEGIS_DEFENSE_STATUS', data => {
       setDefenses(data.defenses);
     });
 
     // Request current status
     WSService.send('AEGIS_REQUEST_STATUS');
 
-    return () => { unsubScan(); unsubProgress(); unsubDefense(); };
-  }, []);
+    return () => {
+      unsubScan();
+      unsubProgress();
+      unsubDefense();
+    };
+  }, [scanAnim]);
 
   const runScan = useCallback(() => {
     setScanning(true);
     Animated.loop(
-      Animated.timing(scanAnim, { toValue: 1, duration: 2000, useNativeDriver: true })
+      Animated.timing(scanAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
     ).start();
     WSService.send('AEGIS_RUN_SCAN');
-  }, []);
+  }, [scanAnim]);
 
-  const toggleDefense = (name) => {
+  const toggleDefense = name => {
     const current = defenses[name];
-    const newStatus = (current === 'ONLINE' || current === 'ACTIVE') ? 'STANDBY' : 'ONLINE';
+    const newStatus = current === 'ONLINE' || current === 'ACTIVE' ? 'STANDBY' : 'ONLINE';
     setDefenses(prev => ({ ...prev, [name]: newStatus }));
     WSService.send('AEGIS_TOGGLE_DEFENSE', { name, status: newStatus });
   };
@@ -161,7 +172,9 @@ export default function AegisScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />
+      }
     >
       {/* Score */}
       <View style={styles.scoreSection}>
@@ -193,16 +206,24 @@ export default function AegisScreen() {
         disabled={scanning}
         activeOpacity={0.7}
       >
-        <Animated.Text style={[styles.scanBtnIcon, {
-          transform: [{
-            rotate: scanAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] })
-          }]
-        }]}>
+        <Animated.Text
+          style={[
+            styles.scanBtnIcon,
+            {
+              transform: [
+                {
+                  rotate: scanAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           ⬡
         </Animated.Text>
-        <Text style={styles.scanBtnText}>
-          {scanning ? 'SCANNING...' : 'RUN FULL SCAN'}
-        </Text>
+        <Text style={styles.scanBtnText}>{scanning ? 'SCANNING...' : 'RUN FULL SCAN'}</Text>
       </TouchableOpacity>
 
       {/* Findings */}
@@ -229,11 +250,7 @@ export default function AegisScreen() {
         {Object.entries(defenses).map(([name, status], i) => (
           <React.Fragment key={name}>
             {i > 0 && <View style={styles.divider} />}
-            <DefenseSystem
-              name={name}
-              status={status}
-              onToggle={() => toggleDefense(name)}
-            />
+            <DefenseSystem name={name} status={status} onToggle={() => toggleDefense(name)} />
           </React.Fragment>
         ))}
       </View>
@@ -255,7 +272,12 @@ const styles = StyleSheet.create({
   lastScan: { ...typography.bodySmall, marginTop: spacing.md },
 
   severitySummary: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
-  sevCount: { borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, alignItems: 'center' },
+  sevCount: {
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
   sevCountNum: { fontFamily: 'Courier New', fontSize: 20, fontWeight: 'bold' },
   sevCountLabel: { fontFamily: 'Courier New', fontSize: 8, letterSpacing: 2 },
 
@@ -271,14 +293,20 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.xl,
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 15,
     elevation: 8,
   },
   scanBtnActive: { opacity: 0.6, shadowOpacity: 0.05, elevation: 2 },
   scanBtnIcon: { fontSize: 18, color: colors.gold },
-  scanBtnText: { fontFamily: 'Courier New', fontSize: 12, color: colors.gold, letterSpacing: 2, fontWeight: 'bold' },
+  scanBtnText: {
+    fontFamily: 'Courier New',
+    fontSize: 12,
+    color: colors.gold,
+    letterSpacing: 2,
+    fontWeight: 'bold',
+  },
 
   sectionLabel: { ...typography.label, marginBottom: spacing.sm, marginTop: spacing.md },
 
@@ -291,53 +319,83 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     padding: spacing.md,
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
   findingHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sevBadge: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  sevBadge: {
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
   sevText: { fontFamily: 'Courier New', fontSize: 9, letterSpacing: 1, fontWeight: 'bold' },
-  findingTitle: { flex: 1, fontFamily: 'Courier New', fontSize: 12, color: colors.text, fontWeight: '600' },
+  findingTitle: {
+    flex: 1,
+    fontFamily: 'Courier New',
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '600',
+  },
   expandIcon: { color: colors.goldDim, fontSize: 12 },
-  findingFile: { fontFamily: 'Courier New', fontSize: 9, color: colors.textDim, marginTop: spacing.sm },
+  findingFile: {
+    fontFamily: 'Courier New',
+    fontSize: 9,
+    color: colors.textDim,
+    marginTop: spacing.sm,
+  },
   findingDetail: { ...typography.bodySmall, marginTop: spacing.sm },
   findingActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   fixBtn: {
-    flex: 1, backgroundColor: 'rgba(212,175,55,0.15)',
-    borderWidth: 1, borderColor: colors.gold,
-    borderRadius: radius.sm, padding: spacing.sm,
+    flex: 1,
+    backgroundColor: 'rgba(212,175,55,0.15)',
+    borderWidth: 1,
+    borderColor: colors.gold,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
     alignItems: 'center',
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 3,
   },
   fixBtnText: { fontFamily: 'Courier New', fontSize: 11, color: colors.gold, fontWeight: 'bold' },
   skipBtn: {
-    paddingHorizontal: spacing.lg, padding: spacing.sm,
-    borderWidth: 1, borderColor: colors.border,
-    borderRadius: radius.sm, alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    alignItems: 'center',
   },
   skipBtnText: { fontFamily: 'Courier New', fontSize: 10, color: colors.textDim },
 
   cleanCard: {
-    alignItems: 'center', padding: spacing.xxl,
+    alignItems: 'center',
+    padding: spacing.xxl,
     backgroundColor: colors.obsidianMid,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.greenDim,
     marginBottom: spacing.xl,
     shadowColor: colors.green,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 15,
     elevation: 8,
   },
   cleanIcon: { fontSize: 32, color: colors.green, marginBottom: spacing.md },
-  cleanTitle: { fontFamily: 'Courier New', fontSize: 16, color: colors.green, letterSpacing: 2, marginBottom: spacing.sm, fontWeight: 'bold' },
+  cleanTitle: {
+    fontFamily: 'Courier New',
+    fontSize: 16,
+    color: colors.green,
+    letterSpacing: 2,
+    marginBottom: spacing.sm,
+    fontWeight: 'bold',
+  },
   cleanSub: { ...typography.bodySmall },
 
   card: {
@@ -347,7 +405,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     overflow: 'hidden',
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 4,
@@ -356,7 +414,12 @@ const styles = StyleSheet.create({
   defenseInfo: { flex: 1 },
   defenseName: { fontFamily: 'Courier New', fontSize: 11, color: colors.text },
   defenseStatus: { fontFamily: 'Courier New', fontSize: 9, letterSpacing: 1, marginTop: 2 },
-  defenseToggle: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  defenseToggle: {
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
   defenseToggleText: { fontFamily: 'Courier New', fontSize: 9, letterSpacing: 1 },
   divider: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.md },
 });
