@@ -5,6 +5,9 @@ const STORAGE_KEY = 'omega_connection';
 const RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
+/**
+ * Service to manage the WebSocket connection to the Omega Desktop Bridge.
+ */
 class WebSocketService {
   constructor() {
     this.ws = null;
@@ -17,6 +20,11 @@ class WebSocketService {
     this.pendingMessages = [];
   }
 
+  /**
+   * Connects to the WebSocket server using provided data or cached storage.
+   * @param {Object} [connectionData] - Connection parameters including host, port, and token.
+   * @returns {Promise<boolean>} True if connection attempt initiated successfully.
+   */
   async connect(connectionData) {
     if (connectionData) {
       this.connectionData = connectionData;
@@ -119,15 +127,30 @@ class WebSocketService {
     }, delay);
   }
 
+  /**
+   * Sends a message to the WebSocket or queues it if offline.
+   * @param {string} type - The message type string.
+   * @param {Object} [payload={}] - The JSON payload to attach.
+   */
   send(type, payload = {}) {
     const msg = JSON.stringify({ type, ...payload });
     if (this.connected && this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(msg);
     } else {
+      if (this.pendingMessages.length >= 100) {
+        console.warn('[WS] Pending message queue full, dropping oldest message.');
+        this.pendingMessages.shift();
+      }
       this.pendingMessages.push(msg);
     }
   }
 
+  /**
+   * Subscribes to a WebSocket event type.
+   * @param {string} event - The event type to listen for.
+   * @param {Function} callback - The callback to execute when the event fires.
+   * @returns {Function} An unsubscribe function to remove the listener.
+   */
   on(event, callback) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -136,6 +159,11 @@ class WebSocketService {
     return () => this.off(event, callback);
   }
 
+  /**
+   * Unsubscribes from a WebSocket event type.
+   * @param {string} event - The event type to unsubscribe from.
+   * @param {Function} callback - The callback reference to remove.
+   */
   off(event, callback) {
     this.listeners.get(event)?.delete(callback);
   }
@@ -144,6 +172,9 @@ class WebSocketService {
     this.listeners.get(event)?.forEach(cb => cb(data));
   }
 
+  /**
+   * Forcefully closes the WebSocket and prevents auto-reconnect.
+   */
   disconnect() {
     clearTimeout(this.reconnectTimer);
     if (this.pingInterval) {
@@ -164,6 +195,10 @@ class WebSocketService {
     this.connectionData = null;
   }
 
+  /**
+   * Gets current state information of the service.
+   * @returns {Object} Connection state object with boolean and host info.
+   */
   getStatus() {
     return {
       connected: this.connected,

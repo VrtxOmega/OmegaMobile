@@ -146,7 +146,7 @@ export default function AegisScreen() {
       Animated.timing(scanAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
     ).start();
     WSService.send('AEGIS_RUN_SCAN');
-  }, []);
+  }, [scanAnim]);
 
   const toggleDefense = name => {
     const current = defenses[name];

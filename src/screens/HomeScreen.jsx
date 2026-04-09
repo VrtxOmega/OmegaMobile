@@ -143,20 +143,22 @@ export default function HomeScreen({ navigation }) {
     Animated.stagger(120, animations).start();
 
     // Pulse animation for connection indicator
-    Animated.loop(
+    const pulseLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.3, duration: 1000, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
       ]),
-    ).start();
+    );
+    pulseLoop.start();
 
     // Watermark breathing animation
-    Animated.loop(
+    const watermarkLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(watermarkAnim, { toValue: 1.05, duration: 4000, useNativeDriver: true }),
         Animated.timing(watermarkAnim, { toValue: 1, duration: 4000, useNativeDriver: true }),
       ]),
-    ).start();
+    );
+    watermarkLoop.start();
 
     const unsubStatus = WSService.on('NAEF_STATUS', data => {
       setStatus({
@@ -191,6 +193,8 @@ export default function HomeScreen({ navigation }) {
     WSService.send('REQUEST_STATUS');
 
     return () => {
+      pulseLoop.stop();
+      watermarkLoop.stop();
       unsubStatus();
       unsubTask();
       unsubActivity();
