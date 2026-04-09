@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, Animated,
+  View,
+  Text,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
 } from 'react-native';
 import { colors, spacing, radius, typography } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
@@ -14,7 +21,9 @@ const ToolStepCard = ({ step }) => {
   return (
     <View style={styles.toolStep}>
       <Text style={styles.toolStepIcon}>{step.ok ? '✓' : step.ok === false ? '✗' : '⚙'}</Text>
-      <Text style={styles.toolStepLabel} numberOfLines={1}>{icon} {step.label}</Text>
+      <Text style={styles.toolStepLabel} numberOfLines={1}>
+        {icon} {step.label}
+      </Text>
     </View>
   );
 };
@@ -25,13 +34,19 @@ const ProgressBar = ({ current, total, action }) => {
   return (
     <View style={styles.progressContainer}>
       <View style={styles.progressHeader}>
-        <Text style={styles.progressText}>Step {current} of {total}</Text>
+        <Text style={styles.progressText}>
+          Step {current} of {total}
+        </Text>
         <Text style={styles.progressPercent}>{Math.round(progress * 100)}%</Text>
       </View>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
-      {action && <Text style={styles.progressAction} numberOfLines={1}>{action}</Text>}
+      {action && (
+        <Text style={styles.progressAction} numberOfLines={1}>
+          {action}
+        </Text>
+      )}
     </View>
   );
 };
@@ -44,7 +59,7 @@ const ThinkingIndicator = ({ steps, elapsed }) => {
       Animated.sequence([
         Animated.timing(dotAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         Animated.timing(dotAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-      ])
+      ]),
     ).start();
   }, []);
 
@@ -74,13 +89,9 @@ const ChatBubble = ({ msg }) => {
 
   return (
     <View style={[styles.bubbleWrapper, isOmega ? styles.bubbleLeft : styles.bubbleRight]}>
-      {isOmega && (
-        <Text style={styles.bubbleSender}>Ω OMEGA</Text>
-      )}
+      {isOmega && <Text style={styles.bubbleSender}>Ω OMEGA</Text>}
       <View style={[styles.bubble, isOmega ? styles.bubbleOmega : styles.bubbleUser]}>
-        <Text style={[styles.bubbleText, !isOmega && { color: colors.gold }]}>
-          {msg.content}
-        </Text>
+        <Text style={[styles.bubbleText, !isOmega && { color: colors.gold }]}>{msg.content}</Text>
       </View>
       {isOmega && msg.steps > 0 && (
         <>
@@ -89,9 +100,7 @@ const ChatBubble = ({ msg }) => {
               ⚡ {msg.steps} tool steps {expanded ? '▾' : '▸'}
             </Text>
           </TouchableOpacity>
-          {expanded && msg.stepLog?.map((s, i) => (
-            <ToolStepCard key={i} step={s} />
-          ))}
+          {expanded && msg.stepLog?.map((s, i) => <ToolStepCard key={i} step={s} />)}
         </>
       )}
     </View>
@@ -131,35 +140,41 @@ export default function AgentScreen() {
   const thinkingStart = useRef(null);
 
   useEffect(() => {
-    const unsubMsg = WSService.on('AGENT_MESSAGE', (data) => {
+    const unsubMsg = WSService.on('AGENT_MESSAGE', data => {
       setThinking(false);
       clearThinkingTimer();
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.message,
-        steps: data.steps || 0,
-        stepLog: data.stepLog || [],
-        timestamp: Date.now(),
-      }]);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: data.message,
+          steps: data.steps || 0,
+          stepLog: data.stepLog || [],
+          timestamp: Date.now(),
+        },
+      ]);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     });
 
-    const unsubStep = WSService.on('AGENT_STEP', (data) => {
+    const unsubStep = WSService.on('AGENT_STEP', data => {
       setThinkingSteps(prev => [...prev.slice(-5), data]);
     });
 
-    const unsubTask = WSService.on('AGENT_TASK_UPDATE', (data) => {
+    const unsubTask = WSService.on('AGENT_TASK_UPDATE', data => {
       setActiveTask(data.task);
     });
 
-    const unsubApproval = WSService.on('APPROVAL_REQUIRED', (data) => {
+    const unsubApproval = WSService.on('APPROVAL_REQUIRED', data => {
       setPendingApproval(data);
       setThinking(false);
       clearThinkingTimer();
     });
 
     return () => {
-      unsubMsg(); unsubStep(); unsubTask(); unsubApproval();
+      unsubMsg();
+      unsubStep();
+      unsubTask();
+      unsubApproval();
       clearThinkingTimer();
     };
   }, []);
@@ -183,7 +198,9 @@ export default function AgentScreen() {
 
   const sendMessage = useCallback(() => {
     const text = input.trim();
-    if (!text) return;
+    if (!text) {
+      return;
+    }
 
     const userMsg = { role: 'user', content: text, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
@@ -195,7 +212,9 @@ export default function AgentScreen() {
   }, [input]);
 
   const handleApprovalResult = (approved, signature, deviceId) => {
-    if (!pendingApproval) return;
+    if (!pendingApproval) {
+      return;
+    }
 
     if (approved) {
       WSService.send('BIOMETRIC_APPROVAL', {
@@ -203,21 +222,27 @@ export default function AgentScreen() {
         device_id: deviceId,
         signature: signature,
       });
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `✅ Approved: ${pendingApproval.tool} — continuing...`,
-        timestamp: Date.now(),
-      }]);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `✅ Approved: ${pendingApproval.tool} — continuing...`,
+          timestamp: Date.now(),
+        },
+      ]);
       startThinking();
     } else {
       WSService.send('BIOMETRIC_DENIAL', {
         challenge_id: pendingApproval.challenge_id,
       });
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `❌ Denied: ${pendingApproval.tool}`,
-        timestamp: Date.now(),
-      }]);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `❌ Denied: ${pendingApproval.tool}`,
+          timestamp: Date.now(),
+        },
+      ]);
     }
 
     setPendingApproval(null);
@@ -227,11 +252,14 @@ export default function AgentScreen() {
     WSService.send('AGENT_ABORT', {});
     setThinking(false);
     clearThinkingTimer();
-    setMessages(prev => [...prev, {
-      role: 'assistant',
-      content: '⏹ Interrupted by user',
-      timestamp: Date.now(),
-    }]);
+    setMessages(prev => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: '⏹ Interrupted by user',
+        timestamp: Date.now(),
+      },
+    ]);
   };
 
   return (
@@ -268,18 +296,31 @@ export default function AgentScreen() {
           <ChatBubble key={i} msg={msg} />
         ))}
 
-        {thinking && (
-          <ThinkingIndicator steps={thinkingSteps} elapsed={thinkingElapsed} />
-        )}
+        {thinking && <ThinkingIndicator steps={thinkingSteps} elapsed={thinkingElapsed} />}
       </ScrollView>
 
       {/* Quick commands */}
-      <QuickCommands onSelect={(cmd) => { setInput(cmd); }} />
+      <QuickCommands
+        onSelect={cmd => {
+          setInput(cmd);
+        }}
+      />
 
       {/* Input */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={[styles.input, input ? { borderColor: colors.gold, shadowColor: colors.gold, shadowOpacity: 0.5, shadowRadius: 10, elevation: 5 } : {}]}
+          style={[
+            styles.input,
+            input
+              ? {
+                  borderColor: colors.gold,
+                  shadowColor: colors.gold,
+                  shadowOpacity: 0.5,
+                  shadowRadius: 10,
+                  elevation: 5,
+                }
+              : {},
+          ]}
           value={input}
           onChangeText={setInput}
           keyboardAppearance="dark"
@@ -329,7 +370,12 @@ const styles = StyleSheet.create({
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   progressText: { fontFamily: 'Courier New', fontSize: 10, color: colors.text },
   progressPercent: { fontFamily: 'Courier New', fontSize: 10, color: colors.gold },
-  progressTrack: { height: 3, backgroundColor: colors.obsidianLight, borderRadius: 2, marginBottom: 4 },
+  progressTrack: {
+    height: 3,
+    backgroundColor: colors.obsidianLight,
+    borderRadius: 2,
+    marginBottom: 4,
+  },
   progressFill: { height: 3, backgroundColor: colors.gold, borderRadius: 2 },
   progressAction: { fontFamily: 'Courier New', fontSize: 9, color: colors.textDim },
 
@@ -407,12 +453,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 0},
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.15,
     shadowRadius: 5,
     elevation: 3,
   },
-  quickCmdText: { fontFamily: 'Courier New', fontSize: 11, color: colors.goldDim, fontWeight: '600' },
+  quickCmdText: {
+    fontFamily: 'Courier New',
+    fontSize: 11,
+    color: colors.goldDim,
+    fontWeight: '600',
+  },
 
   inputContainer: {
     flexDirection: 'row',
@@ -439,33 +490,35 @@ const styles = StyleSheet.create({
     minHeight: 46,
   },
   sendBtn: {
-    width: 44, height: 44,
+    width: 44,
+    height: 44,
     backgroundColor: colors.gold,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.gold,
-    shadowOffset: {width: 0, height: 0},
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
     elevation: 8,
   },
-  sendBtnDisabled: { 
-    backgroundColor: colors.obsidianMid, 
-    borderWidth: 1, 
+  sendBtnDisabled: {
+    backgroundColor: colors.obsidianMid,
+    borderWidth: 1,
     borderColor: colors.border,
-    shadowOpacity: 0, 
-    elevation: 0 
+    shadowOpacity: 0,
+    elevation: 0,
   },
   sendBtnText: { color: colors.obsidian, fontSize: 16, fontWeight: 'bold' },
   stopBtn: {
-    width: 44, height: 44,
+    width: 44,
+    height: 44,
     backgroundColor: colors.red,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.red,
-    shadowOffset: {width: 0, height: 0},
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
     elevation: 8,

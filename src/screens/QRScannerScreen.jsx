@@ -4,13 +4,16 @@ import { colors, spacing, radius, typography } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
 import BiometricService from '../services/BiometricService';
 import { Camera, CameraType } from 'react-native-camera-kit';
+import { ENV } from '../config/env';
 
 export default function QRScannerScreen({ navigation }) {
   const [paired, setPaired] = useState(false);
   const [pairing, setPairing] = useState(false);
 
-  const handleQRRead = async (qrData) => {
-    if (pairing || paired) return;
+  const handleQRRead = async qrData => {
+    if (pairing || paired) {
+      return;
+    }
     setPairing(true);
 
     try {
@@ -57,7 +60,7 @@ export default function QRScannerScreen({ navigation }) {
       // Wait for registration confirmation
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Registration timeout')), 10000);
-        const unsub = WSService.on('REGISTERED', (msg) => {
+        const unsub = WSService.on('REGISTERED', msg => {
           if (msg.device_id === deviceId) {
             clearTimeout(timeout);
             unsub();
@@ -69,10 +72,9 @@ export default function QRScannerScreen({ navigation }) {
       setPaired(true);
       Alert.alert(
         'Paired!',
-        `Successfully paired with Gravity Omega at ${data.host || (data.url.split('://')[1])}`,
-        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+        `Successfully paired with Gravity Omega at ${data.host || data.url.split('://')[1]}`,
+        [{ text: 'OK', onPress: () => navigation.navigate('Home') }],
       );
-
     } catch (e) {
       console.error('[PAIR] Error:', e);
       Alert.alert('Pairing Failed', e.message);
@@ -95,7 +97,7 @@ export default function QRScannerScreen({ navigation }) {
           style={{ width: 240, height: 240 }}
           cameraType={CameraType.Back}
           scanBarcode={true}
-          onReadCode={(event) => {
+          onReadCode={event => {
             if (event?.nativeEvent?.codeStringValue) {
               handleQRRead(event.nativeEvent.codeStringValue);
             }
@@ -122,11 +124,13 @@ export default function QRScannerScreen({ navigation }) {
         style={styles.testBtn}
         onPress={() => {
           // Test pairing with local connection
-          handleQRRead(JSON.stringify({
-            url: 'ws://10.0.2.2:5001/ws',
-            token: 'test',
-            expires: Math.floor(Date.now() / 1000) + 300
-          }));
+          handleQRRead(
+            JSON.stringify({
+              url: ENV.DEV_FALLBACK_URL,
+              token: ENV.DEV_FALLBACK_TOKEN,
+              expires: Math.floor(Date.now() / 1000) + 300,
+            }),
+          );
         }}
       >
         <Text style={styles.testBtnText}>Manual Entry (Development)</Text>
@@ -147,7 +151,8 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.bodySmall, marginTop: spacing.sm, textAlign: 'center' },
 
   viewfinder: {
-    width: 240, height: 240,
+    width: 240,
+    height: 240,
     alignSelf: 'center',
     borderColor: colors.gold,
     backgroundColor: 'rgba(212,175,55,0.05)',
@@ -156,19 +161,63 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginVertical: spacing.xl,
   },
-  cornerTL: { position: 'absolute', top: 0, left: 0, width: 30, height: 30, borderTopWidth: 3, borderLeftWidth: 3, borderColor: colors.gold },
-  cornerTR: { position: 'absolute', top: 0, right: 0, width: 30, height: 30, borderTopWidth: 3, borderRightWidth: 3, borderColor: colors.gold },
-  cornerBL: { position: 'absolute', bottom: 0, left: 0, width: 30, height: 30, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: colors.gold },
-  cornerBR: { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderBottomWidth: 3, borderRightWidth: 3, borderColor: colors.gold },
-  viewfinderText: { fontFamily: 'Courier New', fontSize: 12, color: colors.goldDim, textAlign: 'center' },
+  cornerTL: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 30,
+    height: 30,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: colors.gold,
+  },
+  cornerTR: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: colors.gold,
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 30,
+    height: 30,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: colors.gold,
+  },
+  cornerBR: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderColor: colors.gold,
+  },
+  viewfinderText: {
+    fontFamily: 'Courier New',
+    fontSize: 12,
+    color: colors.goldDim,
+    textAlign: 'center',
+  },
 
   instructions: { gap: spacing.sm, marginBottom: spacing.xl },
   step: { fontFamily: 'Courier New', fontSize: 11, color: colors.textDim },
 
   testBtn: {
-    borderWidth: 1, borderColor: colors.border,
-    borderRadius: radius.md, padding: spacing.md,
-    alignItems: 'center', marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
   testBtnText: { fontFamily: 'Courier New', fontSize: 10, color: colors.textDim },
 

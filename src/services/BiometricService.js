@@ -14,7 +14,9 @@ class BiometricService {
   }
 
   async getOrCreateDeviceId() {
-    if (this.deviceId) return this.deviceId;
+    if (this.deviceId) {
+      return this.deviceId;
+    }
 
     let id = await AsyncStorage.getItem(DEVICE_ID_KEY);
     if (!id) {
@@ -34,7 +36,9 @@ class BiometricService {
   }
 
   async getPublicKey() {
-    if (this.publicKey) return this.publicKey;
+    if (this.publicKey) {
+      return this.publicKey;
+    }
 
     let key = await AsyncStorage.getItem(PUB_KEY_CACHE);
     if (!key) {

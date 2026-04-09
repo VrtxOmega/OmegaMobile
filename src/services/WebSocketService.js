@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ENV } from '../config/env';
 
 const STORAGE_KEY = 'omega_connection';
 const RECONNECT_DELAY = 3000;
@@ -22,12 +23,14 @@ class WebSocketService {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(connectionData));
     } else {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (stored) this.connectionData = JSON.parse(stored);
+      if (stored) {
+        this.connectionData = JSON.parse(stored);
+      }
     }
 
     if (!this.connectionData) {
-      console.warn('[WS] No connection data — defaulting to Sovereign Tunnel (loca.lt)');
-      this.connectionData = { host: 'YOUR_LOCAL_TUNNEL_DOMAIN.loca.lt', port: '' };
+      console.warn('[WS] No connection data — defaulting to configured host');
+      this.connectionData = { host: ENV.DEFAULT_HOST, port: ENV.DEFAULT_PORT };
     }
 
     return this._connect();
@@ -36,14 +39,15 @@ class WebSocketService {
   _connect() {
     const { host, port, url: providedUrl } = this.connectionData;
     // Use WSS if it's an external tunnel, otherwise local WS
-    const protocol = host && (host.includes('loca.lt') || host.includes('lhr.life')) ? 'wss://' : 'ws://';
+    const protocol =
+      host && (host.includes('loca.lt') || host.includes('lhr.life')) ? 'wss://' : 'ws://';
     const portSuffix = port && !host.includes('.lt') && !host.includes('.life') ? `:${port}` : '';
     const url = providedUrl || `${protocol}${host}${portSuffix}/ws`;
 
     try {
       console.log(`[WS] Connecting to ${url}`);
       this.ws = new WebSocket(url, null, {
-        headers: { 'Bypass-Tunnel-Reminder': 'true' }
+        headers: { 'Bypass-Tunnel-Reminder': 'true' },
       });
 
       this.ws.onopen = () => {
@@ -52,7 +56,9 @@ class WebSocketService {
         this.reconnectAttempts = 0;
         this._emit('connected', { host, port });
 
-        if (this.pingInterval) clearInterval(this.pingInterval);
+        if (this.pingInterval) {
+          clearInterval(this.pingInterval);
+        }
         this.pingInterval = setInterval(() => {
           this.send('PING');
         }, 10000);
@@ -63,7 +69,7 @@ class WebSocketService {
         }
       };
 
-      this.ws.onmessage = (event) => {
+      this.ws.onmessage = event => {
         try {
           const msg = JSON.parse(event.data);
           console.log('[WS] Received:', msg.type);
@@ -74,15 +80,17 @@ class WebSocketService {
         }
       };
 
-      this.ws.onerror = (error) => {
+      this.ws.onerror = error => {
         console.error('[WS] Error:', error.message);
         this._emit('error', error);
       };
 
-      this.ws.onclose = (event) => {
+      this.ws.onclose = event => {
         console.log('[WS] Closed:', event.code);
         this.connected = false;
-        if (this.pingInterval) clearInterval(this.pingInterval);
+        if (this.pingInterval) {
+          clearInterval(this.pingInterval);
+        }
         this._emit('disconnected', { code: event.code });
         this._scheduleReconnect();
       };
@@ -138,7 +146,9 @@ class WebSocketService {
 
   disconnect() {
     clearTimeout(this.reconnectTimer);
-    if (this.pingInterval) clearInterval(this.pingInterval);
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+    }
     this.reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // Prevent auto-reconnect
     this.ws?.close();
     this.connected = false;
