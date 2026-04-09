@@ -40,13 +40,16 @@ const ThinkingIndicator = ({ steps, elapsed }) => {
   const dotAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(dotAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         Animated.timing(dotAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
       ])
-    ).start();
-  }, []);
+    );
+    loop.start();
+
+    return () => loop.stop();
+  }, [dotAnim]);
 
   return (
     <View style={styles.thinkingContainer}>

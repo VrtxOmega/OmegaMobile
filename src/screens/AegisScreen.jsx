@@ -104,6 +104,7 @@ export default function AegisScreen() {
   });
   const [refreshing, setRefreshing] = useState(false);
   const scanAnim = useRef(new Animated.Value(0)).current;
+  const scanLoopRef = useRef(null);
 
   useEffect(() => {
     const unsubScan = WSService.on('AEGIS_SCAN_RESULT', (data) => {
@@ -112,6 +113,7 @@ export default function AegisScreen() {
       setScore(data.score || 100);
       setLastScan(new Date());
       setScanDuration(data.duration_ms);
+      if (scanLoopRef.current) { scanLoopRef.current.stop(); scanLoopRef.current = null; }
       Animated.timing(scanAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
     });
 
@@ -126,16 +128,21 @@ export default function AegisScreen() {
     // Request current status
     WSService.send('AEGIS_REQUEST_STATUS');
 
-    return () => { unsubScan(); unsubProgress(); unsubDefense(); };
+    return () => {
+      if (scanLoopRef.current) { scanLoopRef.current.stop(); scanLoopRef.current = null; }
+      unsubScan(); unsubProgress(); unsubDefense();
+    };
   }, []);
 
   const runScan = useCallback(() => {
     setScanning(true);
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.timing(scanAnim, { toValue: 1, duration: 2000, useNativeDriver: true })
-    ).start();
+    );
+    scanLoopRef.current = loop;
+    loop.start();
     WSService.send('AEGIS_RUN_SCAN');
-  }, []);
+  }, [scanAnim]);
 
   const toggleDefense = (name) => {
     const current = defenses[name];
