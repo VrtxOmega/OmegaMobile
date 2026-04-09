@@ -34,6 +34,7 @@ export default function QRScannerScreen({ navigation }) {
 
       // Connect to desktop
       const connectUrl = data.url || `ws://${data.host}:${data.port}`;
+      // eslint-disable-next-line no-console
       console.log('[PAIR] Connecting to', connectUrl);
       const connected = await WSService.connect(data);
 
@@ -94,7 +95,7 @@ export default function QRScannerScreen({ navigation }) {
       {/* Camera viewfinder */}
       <View style={styles.viewfinder}>
         <Camera
-          style={{ width: 240, height: 240 }}
+          style={styles.cameraFrame}
           cameraType={CameraType.Back}
           scanBarcode={true}
           onReadCode={event => {
@@ -103,7 +104,7 @@ export default function QRScannerScreen({ navigation }) {
             }
           }}
         />
-        <Text style={[styles.viewfinderText, { position: 'absolute', bottom: -25 }]}>
+        <Text style={[styles.viewfinderText, styles.viewfinderTextPos]}>
           {pairing ? '⏳ Pairing...' : paired ? '✓ Paired' : '📷 Point at QR Code'}
         </Text>
         <View style={styles.cornerTL} />
@@ -201,11 +202,19 @@ const styles = StyleSheet.create({
     borderRightWidth: 3,
     borderColor: colors.gold,
   },
+  cameraFrame: {
+    width: 240,
+    height: 240,
+  },
   viewfinderText: {
     fontFamily: 'Courier New',
     fontSize: 12,
     color: colors.goldDim,
     textAlign: 'center',
+  },
+  viewfinderTextPos: {
+    position: 'absolute',
+    bottom: -25,
   },
 
   instructions: { gap: spacing.sm, marginBottom: spacing.xl },

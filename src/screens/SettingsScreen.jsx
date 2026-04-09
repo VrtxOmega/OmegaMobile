@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { colors, spacing, radius, typography } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
 import BiometricService from '../services/BiometricService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SettingRow = ({ label, value, onPress, danger }) => (
   <TouchableOpacity style={styles.settingRow} onPress={onPress} activeOpacity={0.7}>
@@ -41,8 +40,6 @@ const ConnectionStatus = ({ status }) => (
 export default function SettingsScreen({ navigation }) {
   const [wsStatus, setWsStatus] = useState({ connected: false });
   const [biometricType, setBiometricType] = useState(null);
-  const [pairingQR, setPairingQR] = useState(null);
-  const [showQR, setShowQR] = useState(false);
   const [deviceId, setDeviceId] = useState(null);
   const [notifSettings, setNotifSettings] = useState({
     approvals: true,
@@ -60,11 +57,6 @@ export default function SettingsScreen({ navigation }) {
       setWsStatus(WSService.getStatus()),
     );
 
-    const unsubQR = WSService.on('PAIRING_QR', data => {
-      setPairingQR(data.qr);
-      setShowQR(true);
-    });
-
     // Check biometrics
     BiometricService.checkAvailability().then(({ available, biometryType }) => {
       if (available) {
@@ -78,18 +70,8 @@ export default function SettingsScreen({ navigation }) {
     return () => {
       unsubConnected();
       unsubDisconnected();
-      unsubQR();
     };
   }, []);
-
-  const requestPairingQR = () => {
-    WSService.send('REQUEST_PAIRING_QR');
-    Alert.alert(
-      'Pairing QR',
-      'Request sent to desktop. Open Gravity Omega → Settings → Mobile Pairing to generate the QR code.',
-      [{ text: 'OK' }],
-    );
-  };
 
   const handleScanQR = () => {
     navigation.navigate('QRScanner');

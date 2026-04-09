@@ -53,12 +53,14 @@ class WebSocketService {
     const url = providedUrl || `${protocol}${host}${portSuffix}/ws`;
 
     try {
+      // eslint-disable-next-line no-console
       console.log(`[WS] Connecting to ${url}`);
       this.ws = new WebSocket(url, null, {
         headers: { 'Bypass-Tunnel-Reminder': 'true' },
       });
 
       this.ws.onopen = () => {
+        // eslint-disable-next-line no-console
         console.log('[WS] Connected');
         this.connected = true;
         this.reconnectAttempts = 0;
@@ -80,6 +82,7 @@ class WebSocketService {
       this.ws.onmessage = event => {
         try {
           const msg = JSON.parse(event.data);
+          // eslint-disable-next-line no-console
           console.log('[WS] Received:', msg.type);
           this._emit(msg.type, msg);
           this._emit('*', msg); // wildcard
@@ -94,6 +97,7 @@ class WebSocketService {
       };
 
       this.ws.onclose = event => {
+        // eslint-disable-next-line no-console
         console.log('[WS] Closed:', event.code);
         this.connected = false;
         if (this.pingInterval) {
@@ -120,6 +124,7 @@ class WebSocketService {
 
     this.reconnectAttempts++;
     const delay = RECONNECT_DELAY * Math.min(this.reconnectAttempts, 5);
+    // eslint-disable-next-line no-console
     console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     this.reconnectTimer = setTimeout(() => {

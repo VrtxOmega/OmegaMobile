@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   RefreshControl,
   Animated,
@@ -201,7 +200,7 @@ export default function HomeScreen({ navigation }) {
       unsubConnected();
       unsubDisconnected();
     };
-  }, []);
+  }, [fadeAnims, pulseAnim, slideAnims, watermarkAnim]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -241,7 +240,8 @@ export default function HomeScreen({ navigation }) {
               <Animated.View
                 style={[
                   styles.connectionPulse,
-                  { transform: [{ scale: pulseAnim }], opacity: status.connected ? 1 : 0.3 },
+                  status.connected ? styles.connectionPulseOnline : styles.connectionPulseOffline,
+                  { transform: [{ scale: pulseAnim }] },
                 ]}
               />
               <Text
@@ -383,6 +383,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
+  },
+  connectionPulseOnline: {
+    opacity: 1,
+  },
+  connectionPulseOffline: {
+    opacity: 0.3,
   },
   connectionText: { fontFamily: 'Courier New', fontSize: 10, letterSpacing: 1 },
 

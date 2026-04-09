@@ -312,18 +312,7 @@ export default function AgentScreen() {
       {/* Input */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={[
-            styles.input,
-            input
-              ? {
-                  borderColor: colors.gold,
-                  shadowColor: colors.gold,
-                  shadowOpacity: 0.5,
-                  shadowRadius: 10,
-                  elevation: 5,
-                }
-              : {},
-          ]}
+          style={[styles.input, input ? styles.inputActive : {}]}
           value={input}
           onChangeText={setInput}
           keyboardAppearance="dark"
@@ -491,6 +480,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     maxHeight: 120,
     minHeight: 46,
+  },
+  inputActive: {
+    borderColor: colors.gold,
+    shadowColor: colors.gold,
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 5,
   },
   sendBtn: {
     width: 44,

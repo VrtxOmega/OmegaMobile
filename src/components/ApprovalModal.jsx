@@ -38,7 +38,7 @@ export default function ApprovalModal({ challenge, onResult, onDismiss }) {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, []);
+  }, [onResult, slideAnim]);
 
   const handleApprove = async () => {
     clearInterval(timerRef.current);

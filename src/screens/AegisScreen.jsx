@@ -138,7 +138,7 @@ export default function AegisScreen() {
       unsubProgress();
       unsubDefense();
     };
-  }, []);
+  }, [scanAnim]);
 
   const runScan = useCallback(() => {
     setScanning(true);
