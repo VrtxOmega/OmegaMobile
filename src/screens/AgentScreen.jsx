@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { colors, spacing, radius, typography } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
+import GemmaService from '../services/GemmaService';
+import InferenceRouter, { ROUTE_MODE } from '../services/InferenceRouter';
 import ApprovalModal from '../components/ApprovalModal';
 
 const ToolStepCard = ({ step }) => {
@@ -71,6 +73,17 @@ const ThinkingIndicator = ({ steps, elapsed }) => {
   );
 };
 
+const BackendBadge = ({ backend }) => {
+  const isLocal = backend === 'local';
+  return (
+    <View style={[styles.backendBadge, { borderColor: isLocal ? colors.gold : colors.green }]}>
+      <Text style={[styles.backendBadgeText, { color: isLocal ? colors.gold : colors.green }]}>
+        {isLocal ? 'Ω LOCAL' : '◈ BRIDGE'}
+      </Text>
+    </View>
+  );
+};
+
 const ChatBubble = ({ msg }) => {
   const [expanded, setExpanded] = useState(false);
   const isOmega = msg.role === 'assistant';
@@ -78,7 +91,10 @@ const ChatBubble = ({ msg }) => {
   return (
     <View style={[styles.bubbleWrapper, isOmega ? styles.bubbleLeft : styles.bubbleRight]}>
       {isOmega && (
-        <Text style={styles.bubbleSender}>Ω OMEGA</Text>
+        <View style={styles.bubbleSenderRow}>
+          <Text style={styles.bubbleSender}>Ω OMEGA</Text>
+          {msg.backend && <BackendBadge backend={msg.backend} />}
+        </View>
       )}
       <View style={[styles.bubble, isOmega ? styles.bubbleOmega : styles.bubbleUser]}>
         <Text style={[styles.bubbleText, !isOmega && { color: colors.gold }]}>
@@ -121,6 +137,18 @@ const QuickCommands = ({ onSelect }) => {
   );
 };
 
+const RouteModeToggle = ({ mode, onCycle }) => {
+  const labels = { auto: 'AUTO', local: 'LOCAL', bridge: 'BRIDGE' };
+  const modeColors = { auto: colors.textDim, local: colors.gold, bridge: colors.green };
+  return (
+    <TouchableOpacity style={styles.routeToggle} onPress={onCycle}>
+      <Text style={[styles.routeToggleText, { color: modeColors[mode] }]}>
+        ⚡ {labels[mode]}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
 export default function AgentScreen() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -129,6 +157,8 @@ export default function AgentScreen() {
   const [thinkingElapsed, setThinkingElapsed] = useState(0);
   const [activeTask, setActiveTask] = useState(null);
   const [pendingApproval, setPendingApproval] = useState(null);
+  const [routeMode, setRouteMode] = useState(ROUTE_MODE.AUTO);
+  const [streamingText, setStreamingText] = useState('');
   const scrollRef = useRef(null);
   const thinkingTimer = useRef(null);
   const thinkingStart = useRef(null);
@@ -140,6 +170,7 @@ export default function AgentScreen() {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: data.message,
+        backend: 'bridge',
         steps: data.steps || 0,
         stepLog: data.stepLog || [],
         timestamp: Date.now(),
@@ -161,8 +192,42 @@ export default function AgentScreen() {
       clearThinkingTimer();
     });
 
+    // Gemma streaming events
+    const unsubToken = GemmaService.on('token', (data) => {
+      setStreamingText(data.partial || '');
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+
+    const unsubComplete = GemmaService.on('complete', (data) => {
+      setThinking(false);
+      clearThinkingTimer();
+      setStreamingText('');
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: data.response,
+        backend: 'local',
+        model: data.model,
+        elapsed_ms: data.elapsed_ms,
+        timestamp: Date.now(),
+      }]);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+
+    const unsubGemmaError = GemmaService.on('error', (data) => {
+      setThinking(false);
+      clearThinkingTimer();
+      setStreamingText('');
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `⚠ On-device error: ${data.error}`,
+        backend: 'local',
+        timestamp: Date.now(),
+      }]);
+    });
+
     return () => {
       unsubMsg(); unsubStep(); unsubTask(); unsubApproval();
+      unsubToken(); unsubComplete(); unsubGemmaError();
       clearThinkingTimer();
     };
   }, []);
@@ -184,7 +249,15 @@ export default function AgentScreen() {
     }, 100);
   };
 
-  const sendMessage = useCallback(() => {
+  const cycleRouteMode = useCallback(() => {
+    const modes = [ROUTE_MODE.AUTO, ROUTE_MODE.LOCAL, ROUTE_MODE.BRIDGE];
+    const idx = modes.indexOf(routeMode);
+    const next = modes[(idx + 1) % modes.length];
+    setRouteMode(next);
+    InferenceRouter.setMode(next);
+  }, [routeMode]);
+
+  const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text) return;
 
@@ -193,9 +266,30 @@ export default function AgentScreen() {
     setInput('');
     startThinking();
 
-    WSService.send('CHAT_MESSAGE', { text, sessionId: 'mobile' });
+    try {
+      const decision = await InferenceRouter.route(text);
+
+      if (decision.backend === 'local') {
+        // Stream from on-device Gemma 4
+        setStreamingText('');
+        await GemmaService.stream(text);
+        // Response arrives via GemmaService events (token/complete)
+      } else {
+        // Route to desktop bridge
+        WSService.send('CHAT_MESSAGE', { text, sessionId: 'mobile' });
+      }
+    } catch (e) {
+      setThinking(false);
+      clearThinkingTimer();
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `⚠ Routing error: ${e.message}`,
+        timestamp: Date.now(),
+      }]);
+    }
+
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [input]);
+  }, [input, routeMode]);
 
   const handleApprovalResult = (approved, signature, deviceId) => {
     if (!pendingApproval) return;
@@ -271,13 +365,26 @@ export default function AgentScreen() {
           <ChatBubble key={i} msg={msg} />
         ))}
 
-        {thinking && (
+        {thinking && streamingText ? (
+          <View style={[styles.bubbleWrapper, styles.bubbleLeft]}>
+            <View style={styles.bubbleSenderRow}>
+              <Text style={styles.bubbleSender}>Ω OMEGA</Text>
+              <BackendBadge backend="local" />
+            </View>
+            <View style={[styles.bubble, styles.bubbleOmega]}>
+              <Text style={styles.bubbleText}>{streamingText}<Text style={styles.streamCursor}>▊</Text></Text>
+            </View>
+          </View>
+        ) : thinking ? (
           <ThinkingIndicator steps={thinkingSteps} elapsed={thinkingElapsed} />
-        )}
+        ) : null}
       </ScrollView>
 
-      {/* Quick commands */}
-      <QuickCommands onSelect={(cmd) => { setInput(cmd); }} />
+      {/* Route mode + Quick commands */}
+      <View style={styles.routeBar}>
+        <RouteModeToggle mode={routeMode} onCycle={cycleRouteMode} />
+        <QuickCommands onSelect={(cmd) => { setInput(cmd); }} />
+      </View>
 
       {/* Input */}
       <View style={styles.inputContainer}>
@@ -474,4 +581,29 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   stopBtnText: { color: 'white', fontSize: 16 },
+
+  // Gemma hybrid routing styles
+  backendBadge: {
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 1,
+  },
+  backendBadgeText: { fontFamily: 'Courier New', fontSize: 7, letterSpacing: 1, fontWeight: 'bold' },
+  bubbleSenderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 },
+  streamCursor: { color: colors.gold, fontSize: 14 },
+  routeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.obsidianLight,
+  },
+  routeToggle: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+  },
+  routeToggleText: { fontFamily: 'Courier New', fontSize: 10, letterSpacing: 1, fontWeight: 'bold' },
 });

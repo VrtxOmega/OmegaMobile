@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { colors, spacing, radius, typography, fonts } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
+import GemmaService from '../services/GemmaService';
 
 const { width } = Dimensions.get('window');
 
@@ -101,6 +102,7 @@ export default function HomeScreen({ navigation }) {
   const [activity, setActivity] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [latency, setLatency] = useState(null);
+  const [gemmaStatus, setGemmaStatus] = useState({ downloaded: false, loaded: false, loading: false, variant: 'E4B', downloadProgress: null });
   
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const watermarkAnim = useRef(new Animated.Value(1)).current;
@@ -167,6 +169,23 @@ export default function HomeScreen({ navigation }) {
 
     WSService.send('REQUEST_STATUS');
 
+    // Check Gemma model status
+    const checkGemma = async () => {
+      try {
+        const downloaded = await GemmaService.isModelDownloaded();
+        const ready = await GemmaService.isReady();
+        setGemmaStatus(prev => ({ ...prev, downloaded, loaded: ready }));
+      } catch { /* GemmaModule may not be available */ }
+    };
+    checkGemma();
+
+    const unsubGemmaProgress = GemmaService.on('downloadProgress', (data) => {
+      setGemmaStatus(prev => ({ ...prev, downloadProgress: data.progress }));
+    });
+    const unsubGemmaReady = GemmaService.on('ready', () => {
+      setGemmaStatus(prev => ({ ...prev, loaded: true, loading: false, downloaded: true }));
+    });
+
     return () => {
       pulseLoop.stop();
       watermarkLoop.stop();
@@ -175,6 +194,8 @@ export default function HomeScreen({ navigation }) {
       unsubActivity();
       unsubConnected();
       unsubDisconnected();
+      unsubGemmaProgress();
+      unsubGemmaReady();
     };
   }, []);
 
@@ -228,6 +249,26 @@ export default function HomeScreen({ navigation }) {
               <StatusCard label="Ollama" status={status.ollama ? 'READY' : 'OFFLINE'} online={status.ollama} />
               <View style={styles.divider} />
               <StatusCard label="Sentinel" status={status.sentinel ? 'ACTIVE' : 'PAUSED'} online={status.sentinel} />
+              <View style={styles.divider} />
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>On-Device AI</Text>
+                <View style={styles.statusRight}>
+                  <StatusDot online={gemmaStatus.loaded} />
+                  <Text style={[styles.statusValue, { color: gemmaStatus.loaded ? colors.gold : gemmaStatus.downloaded ? colors.textDim : colors.red }]}>
+                    {gemmaStatus.loaded ? 'READY' : gemmaStatus.loading ? 'LOADING...' : gemmaStatus.downloaded ? 'DOWNLOADED' : 'NOT INSTALLED'}
+                  </Text>
+                </View>
+              </View>
+              {gemmaStatus.downloadProgress !== null && gemmaStatus.downloadProgress < 1 && (
+                <View style={{ marginTop: spacing.sm }}>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${gemmaStatus.downloadProgress * 100}%`, backgroundColor: colors.gold }]} />
+                  </View>
+                  <Text style={{ fontFamily: 'Courier New', fontSize: 9, color: colors.goldDim, marginTop: 2 }}>
+                    Downloading Gemma 4 E4B... {Math.round(gemmaStatus.downloadProgress * 100)}%
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         ))}

@@ -115,6 +115,10 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:flipper-integration")
 
+    // Gemma on-device inference via MediaPipe LLM Inference API
+    // Requires AGP 8.2+ for Java 21 bytecode compatibility
+    implementation("com.google.mediapipe:tasks-genai:0.10.22")
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

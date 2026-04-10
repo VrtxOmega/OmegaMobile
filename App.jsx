@@ -1,5 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StatusBar, StyleSheet, AppState } from 'react-native';
+import { View, Text, StatusBar, StyleSheet, Platform } from 'react-native';
+import PushNotification from 'react-native-push-notification';
+
+PushNotification.configure({
+  onNotification: function (notification) {
+    console.log("NOTIFICATION:", notification);
+  },
+  requestPermissions: Platform.OS === 'ios'
+});
+
+PushNotification.createChannel(
+  {
+    channelId: "sentinel-alerts",
+    channelName: "Sentinel Alerts",
+    channelDescription: "High-priority alerts from Sovereign Sentinel",
+    playSound: true,
+    importance: 4,
+    vibrate: true,
+  },
+  (created) => console.log(`createChannel returned '${created}'`)
+);
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -111,29 +131,28 @@ function MainTabs() {
 
 export default function App() {
   const [wsConnected, setWsConnected] = useState(false);
-  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    // Auto-connect on launch using saved connection
+    // Auto-connect on launch — service will reconnect permanently
     const init = async () => {
-      const saved = await WSService.getSavedConnection();
-      if (saved) {
-        const ok = await WSService.connect(saved);
-        setWsConnected(ok);
-      }
-      setInitializing(false);
+      await WSService.connect(); // Uses saved connection or default tunnel
     };
-
     init();
 
     const unsubConnected = WSService.on('connected', () => setWsConnected(true));
     const unsubDisconnected = WSService.on('disconnected', () => setWsConnected(false));
-
-    // Handle app state changes — disconnect when backgrounded, reconnect on foreground
-    const appStateSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        if (!WSService.connected) WSService.connect();
-      }
+    
+    const unsubAlert = WSService.on('SENTINEL_ALERT', (data) => {
+      PushNotification.localNotification({
+        channelId: "sentinel-alerts",
+        title: data.title || "🔴 OMEGA ALERT",
+        message: data.body || "System event detected",
+        color: "red",
+        playSound: true,
+        vibrate: true,
+        priority: "high",
+        importance: "high",
+      });
     });
 
     // Check biometric availability
@@ -146,7 +165,7 @@ export default function App() {
     return () => {
       unsubConnected();
       unsubDisconnected();
-      appStateSub.remove();
+      unsubAlert();
     };
   }, []);
 
@@ -184,7 +203,7 @@ export default function App() {
         </NavigationContainer>
 
         {/* Connection indicator overlay */}
-        {!wsConnected && !initializing && (
+        {!wsConnected && (
           <View style={styles.offlineBanner}>
             <Text style={styles.offlineText}>◉ OFFLINE — Gravity Omega not reachable</Text>
           </View>

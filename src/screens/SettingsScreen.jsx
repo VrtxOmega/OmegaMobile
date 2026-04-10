@@ -6,6 +6,7 @@ import {
 import { colors, spacing, radius, typography } from '../theme/veritas';
 import WSService from '../services/WebSocketService';
 import BiometricService from '../services/BiometricService';
+import GemmaService, { GEMMA_MODELS } from '../services/GemmaService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SettingRow = ({ label, value, onPress, danger }) => (
@@ -49,6 +50,9 @@ export default function SettingsScreen({ navigation }) {
     taskComplete: false,
     sealComplete: false,
   });
+  const [gemmaInfo, setGemmaInfo] = useState({ downloaded: false, loaded: false, actual_mb: 0, variant: 'E4B' });
+  const [gemmaDownloading, setGemmaDownloading] = useState(false);
+  const [gemmaProgress, setGemmaProgress] = useState(0);
 
   useEffect(() => {
     // Get connection status
@@ -69,6 +73,16 @@ export default function SettingsScreen({ navigation }) {
 
     // Get device ID
     BiometricService.getOrCreateDeviceId().then(setDeviceId);
+
+    // Check Gemma status
+    const checkGemma = async () => {
+      try {
+        const status = await GemmaService.getDownloadStatus();
+        const ready = await GemmaService.isReady();
+        setGemmaInfo({ ...status, loaded: ready });
+      } catch { /* GemmaModule not available */ }
+    };
+    checkGemma();
 
     return () => { unsubConnected(); unsubDisconnected(); unsubQR(); };
   }, []);
@@ -129,6 +143,41 @@ export default function SettingsScreen({ navigation }) {
 
   const toggleNotif = (key) => {
     setNotifSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleGemmaDownload = async () => {
+    try {
+      setGemmaDownloading(true);
+      setGemmaProgress(0);
+      await GemmaService.downloadModel('E4B', (progress) => {
+        setGemmaProgress(progress);
+      });
+      const status = await GemmaService.getDownloadStatus();
+      setGemmaInfo(prev => ({ ...prev, ...status, downloaded: true }));
+      setGemmaDownloading(false);
+      Alert.alert('Download Complete', 'Gemma 4 E4B is ready for on-device inference.');
+    } catch (e) {
+      setGemmaDownloading(false);
+      Alert.alert('Download Failed', e.message);
+    }
+  };
+
+  const handleGemmaDelete = () => {
+    Alert.alert(
+      'Delete Model',
+      'Remove the Gemma 4 model from device storage? This frees ~2.5GB.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await GemmaService.deleteModel();
+            setGemmaInfo(prev => ({ ...prev, downloaded: false, loaded: false, actual_mb: 0 }));
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -220,6 +269,56 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
           </React.Fragment>
         ))}
+      </View>
+
+      {/* On-Device Intelligence */}
+      <Text style={styles.sectionLabel}>ON-DEVICE INTELLIGENCE</Text>
+      <View style={styles.card}>
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Gemma 4 E4B</Text>
+            <Text style={styles.settingValue}>
+              {gemmaInfo.downloaded ? `${gemmaInfo.actual_mb || '~2500'}MB · ${gemmaInfo.loaded ? 'Loaded in memory' : 'On disk'}` : 'Not downloaded'}
+            </Text>
+          </View>
+          <View style={[styles.badge, { borderColor: gemmaInfo.loaded ? colors.gold : gemmaInfo.downloaded ? colors.green : colors.red }]}>
+            <Text style={[styles.badgeText, { color: gemmaInfo.loaded ? colors.gold : gemmaInfo.downloaded ? colors.green : colors.red }]}>
+              {gemmaInfo.loaded ? 'Ω' : gemmaInfo.downloaded ? '✓' : '✗'}
+            </Text>
+          </View>
+        </View>
+        {gemmaDownloading && (
+          <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md }}>
+            <View style={styles.gemmaProgressTrack}>
+              <View style={[styles.gemmaProgressFill, { width: `${gemmaProgress * 100}%` }]} />
+            </View>
+            <Text style={{ fontFamily: 'Courier New', fontSize: 9, color: colors.goldDim, marginTop: 2 }}>
+              Downloading... {Math.round(gemmaProgress * 100)}%
+            </Text>
+          </View>
+        )}
+        <View style={styles.divider} />
+        {!gemmaInfo.downloaded ? (
+          <SettingRow
+            label="Download Gemma 4 E4B"
+            value="~2.5GB — Enables offline AI"
+            onPress={handleGemmaDownload}
+          />
+        ) : (
+          <SettingRow
+            label="Delete Model"
+            value="Free ~2.5GB device storage"
+            onPress={handleGemmaDelete}
+            danger
+          />
+        )}
+        <View style={styles.divider} />
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Inference Routing</Text>
+            <Text style={styles.settingValue}>Auto — uses local when bridge is down</Text>
+          </View>
+        </View>
       </View>
 
       {/* About */}
@@ -319,5 +418,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xl,
     letterSpacing: 1,
+  },
+
+  // Gemma download progress
+  gemmaProgressTrack: {
+    height: 3,
+    backgroundColor: colors.obsidianLight,
+    borderRadius: 2,
+  },
+  gemmaProgressFill: {
+    height: 3,
+    backgroundColor: colors.gold,
+    borderRadius: 2,
   },
 });
